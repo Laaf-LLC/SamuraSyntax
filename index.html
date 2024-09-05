@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>佐村構文ジェネレーター（リニューアル版）</title>
+    <title>佐村構文ジェネレーター（更新版）</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,7 +25,7 @@
         }
         label {
             display: block;
-            margin-top: 10px;
+            margin-top: 15px;
             font-weight: bold;
         }
         select, input[type="text"], textarea {
@@ -60,7 +60,7 @@
     </style>
 </head>
 <body>
-    <h1>佐村構文ジェネレーター（リニューアル版）</h1>
+    <h1>佐村構文ジェネレーター（更新版）</h1>
     <form id="samuraForm">
         <div>
             <label for="theme">テーマ:</label>
@@ -68,7 +68,9 @@
                 <option value="">選択してください</option>
                 <option value="ノウハウ">ノウハウ</option>
                 <option value="ツール">ツール</option>
-                <option value="マインドセット">マインドセット</option>
+                <option value="マインド">マインド</option>
+                <option value="人">人</option>
+                <option value="もの">もの</option>
             </select>
         </div>
         <div>
@@ -83,11 +85,13 @@
                 <option value="驚き">驚き</option>
                 <option value="感動">感動</option>
                 <option value="効果">効果</option>
+                <option value="満足感">満足感</option>
+                <option value="興奮">興奮</option>
             </select>
         </div>
         <div>
             <label for="specificEmotion">具体的な感情表現:</label>
-            <input type="text" id="specificEmotion" placeholder="例：このマインドセットを取り入れた瞬間、時間の無駄がなくなりました。" required>
+            <input type="text" id="specificEmotion" placeholder="例：想像以上の効果が出た" required>
         </div>
 
         <div>
@@ -97,25 +101,28 @@
                 <option value="効率化">効率化</option>
                 <option value="成果">成果</option>
                 <option value="簡便さ">簡便さ</option>
+                <option value="コスト削減">コスト削減</option>
+                <option value="時間の節約">時間の節約</option>
             </select>
         </div>
         <div>
             <label for="specificValue">具体的な価値提案:</label>
-            <input type="text" id="specificValue" placeholder="例：一日の作業時間が3時間短縮" required>
+            <input type="text" id="specificValue" placeholder="例：作業時間が50%短縮" required>
         </div>
 
         <div>
             <label for="visual">視覚的補強:</label>
             <select id="visual" required>
                 <option value="">選択してください</option>
-                <option value="グラフ">グラフ</option>
-                <option value="ビフォーアフター">ビフォーアフター</option>
+                <option value="グラフやチャート">グラフやチャート</option>
+                <option value="Before/After">Before/After</option>
                 <option value="スクリーンショット">スクリーンショット</option>
+                <option value="成果を視覚化した図表">成果を視覚化した図表</option>
             </select>
         </div>
         <div>
             <label for="specificVisual">具体的な視覚的補強:</label>
-            <input type="text" id="specificVisual" placeholder="例：ビフォーアフターの例を提示" required>
+            <input type="text" id="specificVisual" placeholder="例：Before/Afterの結果を見てもらえば、その違いが一目瞭然です" required>
         </div>
 
         <div>
@@ -123,25 +130,31 @@
             <select id="trust" required>
                 <option value="">選択してください</option>
                 <option value="専門家の推薦">専門家の推薦</option>
-                <option value="ユーザーの成功事例">ユーザーの成功事例</option>
+                <option value="自身の実績">自身の実績</option>
+                <option value="ユーザーの実績">ユーザーの実績</option>
+                <option value="ビフォーアフター">ビフォーアフター</option>
             </select>
         </div>
         <div>
             <label for="specificTrust">具体的な信頼性の証明:</label>
-            <input type="text" id="specificTrust" placeholder="例：多くの成功者が実践" required>
+            <input type="text" id="specificTrust" placeholder="例：多くのユーザーがこのツールで成功を収めています" required>
         </div>
 
         <div>
             <label for="fomo">FOMO要素:</label>
             <select id="fomo" required>
                 <option value="">選択してください</option>
-                <option value="見逃すと損する">見逃すと損する</option>
-                <option value="今すぐ始めるべき">今すぐ始めるべき</option>
+                <option value="欠落感">欠落感</option>
+                <option value="比較">比較</option>
+                <option value="不安感">不安感</option>
+                <option value="緊急感">緊急感</option>
+                <option value="渇望">渇望</option>
+                <option value="疎外感">疎外感</option>
             </select>
         </div>
         <div>
             <label for="specificFomo">具体的なFOMO要素:</label>
-            <input type="text" id="specificFomo" placeholder="例：これを知らないと、時間を無駄にしているかもしれません。" required>
+            <input type="text" id="specificFomo" placeholder="例：今すぐ始めないと、あなたの競合に後れを取ってしまうかもしれません" required>
         </div>
 
         <button type="submit">生成</button>
@@ -166,14 +179,13 @@
             const fomo = document.getElementById('fomo').value;
             const specificFomo = document.getElementById('specificFomo').value;
 
-            const result = `${specificEmotion}
+            const result = `『${specificTheme}』という${theme}を使ったところ、${specificEmotion}！
 
-『${specificTheme}』という${theme}を実践したところ、${specificValue}という驚くべき結果が出ました！
-${specificVisual}を見れば、その効果は一目瞭然です。
+${specificValue}という驚くべき結果が出ました。${specificVisual}
 
-実は、${specificTrust}のです。この${theme}の効果は本物です。
+${specificTrust}この${theme}の効果は本物です。
 
-でも、注意してください。${specificFomo}
+しかし、注意が必要です。${specificFomo}
 今すぐ『${specificTheme}』を取り入れて、あなたの人生を変えてみませんか？このチャンスを逃さないでください！`;
 
             document.getElementById('result').textContent = result;
