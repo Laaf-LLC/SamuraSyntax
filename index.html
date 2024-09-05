@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>佐村構文ジェネレーター</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        form {
+            background: #f4f7f8;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        select, input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #result {
+            margin-top: 20px;
+            background: #e8f4f8;
+            border: 1px solid #b6d7e4;
+            border-radius: 4px;
+            padding: 15px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>佐村構文ジェネレーター</h1>
+    <form id="samuraForm">
+        <label for="theme">テーマ:</label>
+        <select id="theme" required>
+            <option value="">選択してください</option>
+            <option value="ノウハウ">ノウハウ</option>
+            <option value="ツール">ツール</option>
+            <option value="マインドセット">マインドセット</option>
+        </select>
+
+        <label for="customTheme">カスタムテーマ（任意）:</label>
+        <input type="text" id="customTheme" placeholder="具体的なテーマを入力">
+
+        <label for="emotion">感情表現:</label>
+        <select id="emotion" required>
+            <option value="">選択してください</option>
+            <option value="驚き">驚き</option>
+            <option value="感動">感動</option>
+            <option value="効果">効果</option>
+        </select>
+
+        <label for="value">価値提案:</label>
+        <select id="value" required>
+            <option value="">選択してください</option>
+            <option value="効率化">効率化</option>
+            <option value="成果">成果</option>
+            <option value="簡便さ">簡便さ</option>
+        </select>
+
+        <label for="customValue">カスタム価値提案（任意）:</label>
+        <input type="text" id="customValue" placeholder="具体的な価値提案を入力">
+
+        <label for="trust">信頼性の証明:</label>
+        <select id="trust" required>
+            <option value="">選択してください</option>
+            <option value="専門家の推薦">専門家の推薦</option>
+            <option value="ユーザーの成功事例">ユーザーの成功事例</option>
+        </select>
+
+        <label for="customTrust">カスタム信頼性の証明（任意）:</label>
+        <input type="text" id="customTrust" placeholder="具体的な証明を入力">
+
+        <label for="fomo">FOMO要素:</label>
+        <select id="fomo" required>
+            <option value="">選択してください</option>
+            <option value="見逃すと損する">見逃すと損する</option>
+            <option value="今すぐ始めるべき">今すぐ始めるべき</option>
+        </select>
+
+        <label for="customFomo">カスタムFOMO要素（任意）:</label>
+        <textarea id="customFomo" placeholder="具体的なFOMO要素を入力"></textarea>
+
+        <button type="submit">生成</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('samuraForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const theme = document.getElementById('theme').value;
+            const customTheme = document.getElementById('customTheme').value;
+            const emotion = document.getElementById('emotion').value;
+            const value = document.getElementById('value').value;
+            const customValue = document.getElementById('customValue').value;
+            const trust = document.getElementById('trust').value;
+            const customTrust = document.getElementById('customTrust').value;
+            const fomo = document.getElementById('fomo').value;
+            const customFomo = document.getElementById('customFomo').value;
+
+            const emotionExpressions = {
+                '驚き': '驚くべきことに、',
+                '感動': '感動的なことに、',
+                '効果': '効果絶大な'
+            };
+
+            const valuePropositions = {
+                '効率化': '効率を劇的に向上させる',
+                '成果': '成果を飛躍的に増大させる',
+                '簡便さ': '驚くほど簡単に実践できる'
+            };
+
+            const trustFactors = {
+                '専門家の推薦': '多くの専門家も絶賛している',
+                'ユーザーの成功事例': '数多くのユーザーが成功を収めている'
+            };
+
+            const fomoElements = {
+                '見逃すと損する': 'この機会を逃すと大きな損失になるかもしれません。',
+                '今すぐ始めるべき': '今すぐ始めることで、大きなアドバンテージを得られます。'
+            };
+
+            const actualTheme = customTheme || theme;
+            const actualValue = customValue || valuePropositions[value];
+            const actualTrust = customTrust || trustFactors[trust];
+            const actualFomo = customFomo || fomoElements[fomo];
+
+            const result = `${emotionExpressions[emotion]}${actualTheme}について共有します。
+
+${actualValue}${actualTheme}の秘訣を見つけました。
+このアプローチを使えば、誰でも簡単に結果を出せます。
+
+${actualTrust}この${actualTheme}は、本当に効果的です。
+
+${actualFomo}
+
+あなたも今すぐ試してみませんか？`;
+
+            document.getElementById('result').textContent = result;
+        });
+    </script>
+</body>
+</html>
