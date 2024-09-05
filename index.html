@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゴーストライターβ</title>
+    <title>ゴーストライターβ（自動解析版）</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,24 +22,14 @@
             vertical-align: super;
             color: #e74c3c;
         }
-        form {
-            background: #f4f7f8;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        select, input[type="text"], textarea {
+        textarea {
             width: 100%;
-            padding: 8px;
-            margin-top: 5px;
+            height: 150px;
+            padding: 10px;
+            margin-bottom: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            box-sizing: border-box;
+            resize: vertical;
         }
         button {
             background-color: #3498db;
@@ -49,7 +39,6 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
-            margin-top: 20px;
         }
         button:hover {
             background-color: #2980b9;
@@ -66,135 +55,43 @@
 </head>
 <body>
     <h1>ゴーストライター<span class="beta">β</span></h1>
-    <form id="samuraForm">
-        <div>
-            <label for="theme">テーマ:</label>
-            <select id="theme" required>
-                <option value="">選択してください</option>
-                <option value="ノウハウ">ノウハウ</option>
-                <option value="ツール">ツール</option>
-                <option value="マインド">マインド</option>
-                <option value="人">人</option>
-                <option value="もの">もの</option>
-            </select>
-        </div>
-        <div>
-            <label for="specificTheme">具体的なテーマ:</label>
-            <input type="text" id="specificTheme" placeholder="例：時間管理のマインドセット" required>
-        </div>
-
-        <div>
-            <label for="emotion">感情表現:</label>
-            <select id="emotion" required>
-                <option value="">選択してください</option>
-                <option value="驚き">驚き</option>
-                <option value="感動">感動</option>
-                <option value="効果">効果</option>
-                <option value="満足感">満足感</option>
-                <option value="興奮">興奮</option>
-            </select>
-        </div>
-        <div>
-            <label for="specificEmotion">具体的な感情表現:</label>
-            <input type="text" id="specificEmotion" placeholder="例：想像以上の効果が出た" required>
-        </div>
-
-        <div>
-            <label for="value">価値提案:</label>
-            <select id="value" required>
-                <option value="">選択してください</option>
-                <option value="効率化">効率化</option>
-                <option value="成果">成果</option>
-                <option value="簡便さ">簡便さ</option>
-                <option value="コスト削減">コスト削減</option>
-                <option value="時間の節約">時間の節約</option>
-            </select>
-        </div>
-        <div>
-            <label for="specificValue">具体的な価値提案:</label>
-            <input type="text" id="specificValue" placeholder="例：作業時間が50%短縮" required>
-        </div>
-
-        <div>
-            <label for="visual">視覚的補強:</label>
-            <select id="visual" required>
-                <option value="">選択してください</option>
-                <option value="グラフやチャート">グラフやチャート</option>
-                <option value="Before/After">Before/After</option>
-                <option value="スクリーンショット">スクリーンショット</option>
-                <option value="成果を視覚化した図表">成果を視覚化した図表</option>
-            </select>
-        </div>
-        <div>
-            <label for="specificVisual">具体的な視覚的補強:</label>
-            <input type="text" id="specificVisual" placeholder="例：Before/Afterの結果を見てもらえば、その違いが一目瞭然です" required>
-        </div>
-
-        <div>
-            <label for="trust">信頼性の証明:</label>
-            <select id="trust" required>
-                <option value="">選択してください</option>
-                <option value="専門家の推薦">専門家の推薦</option>
-                <option value="自身の実績">自身の実績</option>
-                <option value="ユーザーの実績">ユーザーの実績</option>
-                <option value="ビフォーアフター">ビフォーアフター</option>
-            </select>
-        </div>
-        <div>
-            <label for="specificTrust">具体的な信頼性の証明:</label>
-            <input type="text" id="specificTrust" placeholder="例：多くのユーザーがこのツールで成功を収めています" required>
-        </div>
-
-        <div>
-            <label for="fomo">FOMO要素:</label>
-            <select id="fomo" required>
-                <option value="">選択してください</option>
-                <option value="欠落感">欠落感</option>
-                <option value="比較">比較</option>
-                <option value="不安感">不安感</option>
-                <option value="緊急感">緊急感</option>
-                <option value="渇望">渇望</option>
-                <option value="疎外感">疎外感</option>
-            </select>
-        </div>
-        <div>
-            <label for="specificFomo">具体的なFOMO要素:</label>
-            <input type="text" id="specificFomo" placeholder="例：今すぐ始めないと、あなたの競合に後れを取ってしまうかもしれません" required>
-        </div>
-
-        <button type="submit">生成</button>
-    </form>
-
+    <textarea id="input" placeholder="ここに元の文章を入力してください"></textarea>
+    <button onclick="convertToBunjinBun()">佐村構文に変換</button>
     <div id="result"></div>
 
     <script>
-        document.getElementById('samuraForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const theme = document.getElementById('theme').value;
-            const specificTheme = document.getElementById('specificTheme').value;
-            const emotion = document.getElementById('emotion').value;
-            const specificEmotion = document.getElementById('specificEmotion').value;
-            const value = document.getElementById('value').value;
-            const specificValue = document.getElementById('specificValue').value;
-            const visual = document.getElementById('visual').value;
-            const specificVisual = document.getElementById('specificVisual').value;
-            const trust = document.getElementById('trust').value;
-            const specificTrust = document.getElementById('specificTrust').value;
-            const fomo = document.getElementById('fomo').value;
-            const specificFomo = document.getElementById('specificFomo').value;
-
-            const result = `『${specificTheme}』という${theme}を使ったところ、${specificEmotion}！
-
-${specificValue}という驚くべき結果が出ました。${specificVisual}
-
-${specificTrust}この${theme}の効果は本物です。
-
-しかし、注意が必要です。${specificFomo}
-今すぐ『${specificTheme}』を取り入れて、あなたの人生を変えてみませんか？このチャンスを逃さないでください！`;
-
+        function convertToBunjinBun() {
+            const input = document.getElementById('input').value;
+            const result = analyzeBunjinBun(input);
             document.getElementById('result').textContent = result;
-        });
+        }
+
+        function analyzeBunjinBun(text) {
+            // 簡易的な解析ロジック
+            const themes = ['ノウハウ', 'ツール', 'マインド', '人', 'もの'];
+            const emotions = ['驚き', '感動', '効果', '満足感', '興奮'];
+            const values = ['効率化', '成果', '簡便さ', 'コスト削減', '時間の節約'];
+            const visuals = ['グラフ', 'Before/After', 'スクリーンショット', '図表'];
+            const trusts = ['専門家', '実績', 'ユーザー', 'ビフォーアフター'];
+            const fomos = ['欠落感', '比較', '不安感', '緊急感', '渇望', '疎外感'];
+
+            let theme = themes.find(t => text.includes(t)) || 'ノウハウ';
+            let emotion = emotions.find(e => text.includes(e)) || '驚き';
+            let value = values.find(v => text.includes(v)) || '効率化';
+            let visual = visuals.find(v => text.includes(v)) || 'Before/After';
+            let trust = trusts.find(t => text.includes(t)) || '実績';
+            let fomo = fomos.find(f => text.includes(f)) || '緊急感';
+
+            // 佐村構文の生成
+            return `『${theme}』に関する驚きの発見をお伝えします！
+
+${emotion}を感じるほどの${value}が実現できました。${visual}の結果を見れば、その効果は一目瞭然です。
+
+${trust}が証明するように、この方法の効果は絶大です。
+
+しかし、注意が必要です。${fomo}を感じるかもしれません。
+今すぐ『${theme}』を取り入れて、あなたの人生を変えてみませんか？このチャンスを逃さないでください！`;
+        }
     </script>
 </body>
 </html>
