@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゴーストライターβ（自動解析版）</title>
+    <title>ゴーストライターβ（採点機能付き）</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@
             margin: 0 auto;
             padding: 20px;
         }
-        h1 {
+        h1, h2 {
             color: #2c3e50;
             text-align: center;
         }
@@ -39,11 +39,13 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            display: block;
+            margin: 0 auto;
         }
         button:hover {
             background-color: #2980b9;
         }
-        #result {
+        #result, #score {
             margin-top: 20px;
             background: #e8f4f8;
             border: 1px solid #b6d7e4;
@@ -51,23 +53,35 @@
             padding: 15px;
             white-space: pre-wrap;
         }
+        .score-item {
+            margin-bottom: 10px;
+        }
+        .score-value {
+            font-weight: bold;
+            color: #2980b9;
+        }
     </style>
 </head>
 <body>
     <h1>ゴーストライター<span class="beta">β</span></h1>
     <textarea id="input" placeholder="ここに元の文章を入力してください"></textarea>
-    <button onclick="convertToBunjinBun()">佐村構文に変換</button>
+    <button onclick="ghostWrite()">ゴーストライティング</button>
+    <h2>採点結果</h2>
+    <div id="score"></div>
+    <h2>変換結果</h2>
     <div id="result"></div>
 
     <script>
-        function convertToBunjinBun() {
+        function ghostWrite() {
             const input = document.getElementById('input').value;
             const result = analyzeBunjinBun(input);
             document.getElementById('result').textContent = result;
+            const scores = scoreText(input);
+            displayScores(scores);
         }
 
         function analyzeBunjinBun(text) {
-            // 簡易的な解析ロジック
+            // 簡易的な解析ロジック（前回と同じ）
             const themes = ['ノウハウ', 'ツール', 'マインド', '人', 'もの'];
             const emotions = ['驚き', '感動', '効果', '満足感', '興奮'];
             const values = ['効率化', '成果', '簡便さ', 'コスト削減', '時間の節約'];
@@ -91,6 +105,42 @@ ${trust}が証明するように、この方法の効果は絶大です。
 
 しかし、注意が必要です。${fomo}を感じるかもしれません。
 今すぐ『${theme}』を取り入れて、あなたの人生を変えてみませんか？このチャンスを逃さないでください！`;
+        }
+
+        function scoreText(text) {
+            // 簡易的な採点ロジック
+            let appealScore = Math.min(text.length / 10, 100);
+            let spreadScore = (text.match(/[!?！？]/g) || []).length * 10;
+            let empathyScore = (text.match(/[思感考]/g) || []).length * 5;
+
+            appealScore = Math.min(appealScore, 100);
+            spreadScore = Math.min(spreadScore, 100);
+            empathyScore = Math.min(empathyScore, 100);
+
+            const totalScore = Math.round((appealScore + spreadScore + empathyScore) / 3);
+
+            return {
+                appeal: Math.round(appealScore),
+                spread: Math.round(spreadScore),
+                empathy: Math.round(empathyScore),
+                total: totalScore
+            };
+        }
+
+        function displayScores(scores) {
+            const scoreDiv = document.getElementById('score');
+            scoreDiv.innerHTML = `
+                <div class="score-item">総合スコア: <span class="score-value">${scores.total}点</span></div>
+                <div class="score-item">訴求力: <span class="score-value">${scores.appeal}点</span></div>
+                <div class="score-item">拡散性: <span class="score-value">${scores.spread}点</span></div>
+                <div class="score-item">共感性: <span class="score-value">${scores.empathy}点</span></div>
+                <div class="score-item">改善ポイント: 
+                    ${scores.appeal < 70 ? "・より具体的な説明を加えて訴求力を高めてください。" : ""}
+                    ${scores.spread < 70 ? "・感嘆符やクエスチョンマークを使用して拡散性を高めてください。" : ""}
+                    ${scores.empathy < 70 ? "・読者の感情に訴えかける表現を増やして共感性を高めてください。" : ""}
+                    ${scores.appeal >= 70 && scores.spread >= 70 && scores.empathy >= 70 ? "素晴らしい文章です！さらなる改善のために、専門家の意見や統計データを追加することを検討してください。" : ""}
+                </div>
+            `;
         }
     </script>
 </body>
