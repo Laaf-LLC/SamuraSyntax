@@ -1,147 +1,302 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゴーストライターβ（採点機能付き）</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1, h2 {
-            color: #2c3e50;
-            text-align: center;
-        }
-        .beta {
-            font-size: 0.5em;
-            vertical-align: super;
-            color: #e74c3c;
-        }
-        textarea {
-            width: 100%;
-            height: 150px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            display: block;
-            margin: 0 auto;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        #result, #score {
-            margin-top: 20px;
-            background: #e8f4f8;
-            border: 1px solid #b6d7e4;
-            border-radius: 4px;
-            padding: 15px;
-            white-space: pre-wrap;
-        }
-        .score-item {
-            margin-bottom: 10px;
-        }
-        .score-value {
-            font-weight: bold;
-            color: #2980b9;
-        }
-    </style>
-</head>
-<body>
-    <h1>ゴーストライター<span class="beta">β</span></h1>
-    <textarea id="input" placeholder="ここに元の文章を入力してください"></textarea>
-    <button onclick="ghostWrite()">ゴーストライティング</button>
-    <h2>採点結果</h2>
-    <div id="score"></div>
-    <h2>変換結果</h2>
-    <div id="result"></div>
+import React, { useRef, useEffect, useState } from 'react';
 
-    <script>
-        function ghostWrite() {
-            const input = document.getElementById('input').value;
-            const result = analyzeBunjinBun(input);
-            document.getElementById('result').textContent = result;
-            const scores = scoreText(input);
-            displayScores(scores);
+const CANVAS_WIDTH = 600;
+const CANVAS_HEIGHT = 600;
+const PLAYER_SIZE = 20;
+const ENEMY_SIZE = 30;
+const PLAYER_SPEED = 3;
+const INITIAL_ENEMY_SPEED = 0.6;
+const INVINCIBILITY_TIME = 1000;
+const ENEMY_DAMAGE = 15; // 敵の攻撃力を15に変更
+
+const weapons = {
+  sword: { range: 40, cooldown: 300, damage: 15, color: 'yellow', knockback: 40 },
+  bow: { range: 80, cooldown: 800, damage: 8, color: 'green', knockback: 25 },
+  magic: { range: 120, cooldown: 1200, damage: 5, color: 'purple', knockback: 10 }
+};
+
+const OpenFieldGame = () => {
+  const canvasRef = useRef(null);
+  const [gameStatus, setGameStatus] = useState('playing');
+  const [player, setPlayer] = useState({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, health: 100, direction: 'right', isInvincible: false });
+  const [enemy, setEnemy] = useState({ x: CANVAS_WIDTH - 70, y: CANVAS_HEIGHT - 70, health: 200, stunned: false, speed: INITIAL_ENEMY_SPEED });
+  const [selectedWeapon, setSelectedWeapon] = useState('sword');
+  const [canAttack, setCanAttack] = useState(true);
+  const [enemyStartedMoving, setEnemyStartedMoving] = useState(false);
+  const [attackEffect, setAttackEffect] = useState(null);
+  const [deathEffect, setDeathEffect] = useState(null);
+  const [keysPressed, setKeysPressed] = useState({});
+
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const applyKnockback = (attacker, target, size, knockbackDistance) => {
+    const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
+    return {
+      x: clamp(target.x + Math.cos(angle) * knockbackDistance, size / 2, CANVAS_WIDTH - size / 2),
+      y: clamp(target.y + Math.sin(angle) * knockbackDistance, size / 2, CANVAS_HEIGHT - size / 2)
+    };
+  };
+
+  const calculateKnockbackDamage = (knockback) => {
+    return Math.floor(knockback / 10);  // 10ごとに1ダメージ
+  };
+
+  const drawHealthBar = (ctx, x, y, width, height, health, maxHealth, color) => {
+    const healthPercentage = health / maxHealth;
+    ctx.fillStyle = 'black';
+    ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width * healthPercentage, height);
+    ctx.fillStyle = 'white';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.round(health)}/${maxHealth}`, x + width / 2, y + height / 2 + 4);
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    const render = () => {
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Draw player
+      ctx.fillStyle = player.isInvincible ? 'rgba(0, 0, 255, 0.5)' : 'blue';
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, PLAYER_SIZE / 2, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Draw player direction
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      switch (player.direction) {
+        case 'up':
+          ctx.lineTo(player.x, player.y - PLAYER_SIZE / 2);
+          break;
+        case 'down':
+          ctx.lineTo(player.x, player.y + PLAYER_SIZE / 2);
+          break;
+        case 'left':
+          ctx.lineTo(player.x - PLAYER_SIZE / 2, player.y);
+          break;
+        case 'right':
+          ctx.lineTo(player.x + PLAYER_SIZE / 2, player.y);
+          break;
+      }
+      ctx.strokeStyle = 'white';
+      ctx.stroke();
+
+      // Draw enemy
+      ctx.fillStyle = enemy.stunned ? 'orange' : 'red';
+      ctx.beginPath();
+      ctx.moveTo(enemy.x, enemy.y - ENEMY_SIZE / 2);
+      ctx.lineTo(enemy.x - ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE / 2);
+      ctx.lineTo(enemy.x + ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Draw weapon range
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, weapons[selectedWeapon].range, 0, 2 * Math.PI);
+      ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+      ctx.stroke();
+
+      // Draw attack effect
+      if (attackEffect) {
+        ctx.strokeStyle = weapons[selectedWeapon].color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(attackEffect.x, attackEffect.y);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+
+      // Draw health bars
+      drawHealthBar(ctx, 10, 10, 200, 20, player.health, 100, 'limegreen');
+      drawHealthBar(ctx, CANVAS_WIDTH - 210, 10, 200, 20, enemy.health, 200, 'red');
+
+      // Draw enemy speed
+      ctx.fillStyle = 'black';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(`敵の速度: ${enemy.speed.toFixed(3)}`, 10, CANVAS_HEIGHT - 10);
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [player, enemy, selectedWeapon, attackEffect]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (gameStatus !== 'playing') return;
+      setKeysPressed(prev => ({ ...prev, [e.key]: true }));
+    };
+
+    const handleKeyUp = (e) => {
+      setKeysPressed(prev => ({ ...prev, [e.key]: false }));
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [gameStatus]);
+
+  useEffect(() => {
+    if (gameStatus !== 'playing') return;
+
+    const movePlayer = () => {
+      let newX = player.x;
+      let newY = player.y;
+      let newDirection = player.direction;
+
+      if (keysPressed.ArrowUp) {
+        newY = Math.max(PLAYER_SIZE / 2, player.y - PLAYER_SPEED);
+        newDirection = 'up';
+      }
+      if (keysPressed.ArrowDown) {
+        newY = Math.min(CANVAS_HEIGHT - PLAYER_SIZE / 2, player.y + PLAYER_SPEED);
+        newDirection = 'down';
+      }
+      if (keysPressed.ArrowLeft) {
+        newX = Math.max(PLAYER_SIZE / 2, player.x - PLAYER_SPEED);
+        newDirection = 'left';
+      }
+      if (keysPressed.ArrowRight) {
+        newX = Math.min(CANVAS_WIDTH - PLAYER_SIZE / 2, player.x + PLAYER_SPEED);
+        newDirection = 'right';
+      }
+
+      if (newX !== player.x || newY !== player.y) {
+        setEnemyStartedMoving(true);
+      }
+
+      setPlayer(prev => ({ ...prev, x: newX, y: newY, direction: newDirection }));
+
+      if (keysPressed.z && canAttack) {
+        attack();
+      }
+
+      if (keysPressed.x) {
+        setSelectedWeapon(prev => {
+          const weaponList = Object.keys(weapons);
+          const currentIndex = weaponList.indexOf(prev);
+          return weaponList[(currentIndex + 1) % weaponList.length];
+        });
+        setKeysPressed(prev => ({ ...prev, x: false }));
+      }
+    };
+
+    const moveEnemy = () => {
+      if (!enemy.stunned && enemyStartedMoving) {
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 0) {
+          const newX = clamp(enemy.x + (dx / distance) * enemy.speed, ENEMY_SIZE / 2, CANVAS_WIDTH - ENEMY_SIZE / 2);
+          const newY = clamp(enemy.y + (dy / distance) * enemy.speed, ENEMY_SIZE / 2, CANVAS_HEIGHT - ENEMY_SIZE / 2);
+          setEnemy(prev => ({ ...prev, x: newX, y: newY }));
         }
 
-        function analyzeBunjinBun(text) {
-            // 簡易的な解析ロジック（前回と同じ）
-            const themes = ['ノウハウ', 'ツール', 'マインド', '人', 'もの'];
-            const emotions = ['驚き', '感動', '効果', '満足感', '興奮'];
-            const values = ['効率化', '成果', '簡便さ', 'コスト削減', '時間の節約'];
-            const visuals = ['グラフ', 'Before/After', 'スクリーンショット', '図表'];
-            const trusts = ['専門家', '実績', 'ユーザー', 'ビフォーアフター'];
-            const fomos = ['欠落感', '比較', '不安感', '緊急感', '渇望', '疎外感'];
-
-            let theme = themes.find(t => text.includes(t)) || 'ノウハウ';
-            let emotion = emotions.find(e => text.includes(e)) || '驚き';
-            let value = values.find(v => text.includes(v)) || '効率化';
-            let visual = visuals.find(v => text.includes(v)) || 'Before/After';
-            let trust = trusts.find(t => text.includes(t)) || '実績';
-            let fomo = fomos.find(f => text.includes(f)) || '緊急感';
-
-            // 佐村構文の生成
-            return `『${theme}』に関する驚きの発見をお伝えします！
-
-${emotion}を感じるほどの${value}が実現できました。${visual}の結果を見れば、その効果は一目瞭然です。
-
-${trust}が証明するように、この方法の効果は絶大です。
-
-しかし、注意が必要です。${fomo}を感じるかもしれません。
-今すぐ『${theme}』を取り入れて、あなたの人生を変えてみませんか？このチャンスを逃さないでください！`;
+        // Check for collision with player
+        if (distance < (PLAYER_SIZE + ENEMY_SIZE) / 2 && !player.isInvincible) {
+          const knockback = 20;
+          const knockbackDamage = calculateKnockbackDamage(knockback);
+          setPlayer(prev => {
+            const newHealth = Math.max(0, prev.health - ENEMY_DAMAGE - knockbackDamage);
+            if (newHealth <= 0) {
+              setGameStatus('lost');
+            }
+            const knockedBack = applyKnockback(enemy, prev, PLAYER_SIZE, knockback);
+            return { ...prev, health: newHealth, x: knockedBack.x, y: knockedBack.y, isInvincible: true };
+          });
+          setTimeout(() => setPlayer(prev => ({ ...prev, isInvincible: false })), INVINCIBILITY_TIME);
         }
+      }
+    };
 
-        function scoreText(text) {
-            // 簡易的な採点ロジック
-            let appealScore = Math.min(text.length / 10, 100);
-            let spreadScore = (text.match(/[!?！？]/g) || []).length * 10;
-            let empathyScore = (text.match(/[思感考]/g) || []).length * 5;
+    const intervalId = setInterval(() => {
+      movePlayer();
+      moveEnemy();
+    }, 1000 / 60); // 60 FPS
 
-            appealScore = Math.min(appealScore, 100);
-            spreadScore = Math.min(spreadScore, 100);
-            empathyScore = Math.min(empathyScore, 100);
+    return () => clearInterval(intervalId);
+  }, [keysPressed, player, enemy, canAttack, gameStatus, enemyStartedMoving]);
 
-            const totalScore = Math.round((appealScore + spreadScore + empathyScore) / 3);
+  const attack = () => {
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - player.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
 
-            return {
-                appeal: Math.round(appealScore),
-                spread: Math.round(spreadScore),
-                empathy: Math.round(empathyScore),
-                total: totalScore
-            };
+    if (distance <= weapons[selectedWeapon].range) {
+      const knockbackDamage = calculateKnockbackDamage(weapons[selectedWeapon].knockback);
+      setEnemy(prev => {
+        const newHealth = Math.max(0, prev.health - weapons[selectedWeapon].damage - knockbackDamage);
+        if (newHealth === 0) {
+          setGameStatus('won');
         }
+        const knockedBack = applyKnockback(player, prev, ENEMY_SIZE, weapons[selectedWeapon].knockback);
+        const newSpeed = Math.min(prev.speed * 1.1, 2);
+        return { ...prev, health: newHealth, stunned: true, x: knockedBack.x, y: knockedBack.y, speed: newSpeed };
+      });
 
-        function displayScores(scores) {
-            const scoreDiv = document.getElementById('score');
-            scoreDiv.innerHTML = `
-                <div class="score-item">総合スコア: <span class="score-value">${scores.total}点</span></div>
-                <div class="score-item">訴求力: <span class="score-value">${scores.appeal}点</span></div>
-                <div class="score-item">拡散性: <span class="score-value">${scores.spread}点</span></div>
-                <div class="score-item">共感性: <span class="score-value">${scores.empathy}点</span></div>
-                <div class="score-item">改善ポイント: 
-                    ${scores.appeal < 70 ? "・より具体的な説明を加えて訴求力を高めてください。" : ""}
-                    ${scores.spread < 70 ? "・感嘆符やクエスチョンマークを使用して拡散性を高めてください。" : ""}
-                    ${scores.empathy < 70 ? "・読者の感情に訴えかける表現を増やして共感性を高めてください。" : ""}
-                    ${scores.appeal >= 70 && scores.spread >= 70 && scores.empathy >= 70 ? "素晴らしい文章です！さらなる改善のために、専門家の意見や統計データを追加することを検討してください。" : ""}
-                </div>
-            `;
-        }
-    </script>
-</body>
-</html>
+      setAttackEffect({ x: enemy.x, y: enemy.y });
+      setTimeout(() => setAttackEffect(null), 100);
+
+      setTimeout(() => setEnemy(prev => ({ ...prev, stunned: false })), 500);
+    }
+
+    setCanAttack(false);
+    setTimeout(() => setCanAttack(true), weapons[selectedWeapon].cooldown);
+  };
+
+  const resetGame = () => {
+    setPlayer({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, health: 100, direction: 'right', isInvincible: false });
+    setEnemy({ x: CANVAS_WIDTH - 70, y: CANVAS_HEIGHT - 70, health: 200, stunned: false, speed: INITIAL_ENEMY_SPEED });
+    setGameStatus('playing');
+    setCanAttack(true);
+    setEnemyStartedMoving(false);
+    setDeathEffect(null);
+    setKeysPressed({});
+  };
+
+  return (
+    <div className="w-[650px] mx-auto mt-8 p-4 border rounded-lg shadow-lg">
+      <h2 className="text-2xl font-bold mb-4 text-center">オープンフィールドチェイスゲーム</h2>
+      <div className="text-center">
+        <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} style={{ border: '1px solid black' }} />
+        <p className="mt-2">
+          青い丸: プレイヤー（白線が向き） | 赤い三角: 敵 | 緑の円: 攻撃範囲
+        </p>
+        <p className="mt-1">
+          現在の武器: {selectedWeapon === 'sword' ? '剣' : selectedWeapon === 'bow' ? '弓' : '魔法'}
+        </p>
+        {gameStatus === 'lost' && <p className="text-red-500 font-bold mt-2">ゲームオーバー！敵に倒されました。</p>}
+        {gameStatus === 'won' && <p className="text-green-500 font-bold mt-2">勝利！敵を倒しました。</p>}
+      </div>
+      <div className="flex justify-center mt-4">
+        {(gameStatus === 'lost' || gameStatus === 'won') && (
+          <button 
+            onClick={resetGame}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            ゲームをリセット
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default OpenFieldGame;
