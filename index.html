@@ -1,302 +1,122 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Volume2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Slider } from '@/components/ui/slider';
 
-const CANVAS_WIDTH = 600;
-const CANVAS_HEIGHT = 600;
-const PLAYER_SIZE = 20;
-const ENEMY_SIZE = 30;
-const PLAYER_SPEED = 3;
-const INITIAL_ENEMY_SPEED = 0.6;
-const INVINCIBILITY_TIME = 1000;
-const ENEMY_DAMAGE = 15; // 敵の攻撃力を15に変更
+const allHiragana = [
+  'あ', 'い', 'う', 'え', 'お',
+  'か', 'き', 'く', 'け', 'こ', 'が', 'ぎ', 'ぐ', 'げ', 'ご',
+  'さ', 'し', 'す', 'せ', 'そ', 'ざ', 'じ', 'ず', 'ぜ', 'ぞ',
+  'た', 'ち', 'つ', 'て', 'と', 'だ', 'ぢ', 'づ', 'で', 'ど',
+  'な', 'に', 'ぬ', 'ね', 'の',
+  'は', 'ひ', 'ふ', 'へ', 'ほ', 'ば', 'び', 'ぶ', 'べ', 'ぼ', 'ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ',
+  'ま', 'み', 'む', 'め', 'も',
+  'や', 'ゆ', 'よ',
+  'ら', 'り', 'る', 'れ', 'ろ',
+  'わ', 'を', 'ん'
+];
 
-const weapons = {
-  sword: { range: 40, cooldown: 300, damage: 15, color: 'yellow', knockback: 40 },
-  bow: { range: 80, cooldown: 800, damage: 8, color: 'green', knockback: 25 },
-  magic: { range: 120, cooldown: 1200, damage: 5, color: 'purple', knockback: 10 }
-};
-
-const OpenFieldGame = () => {
-  const canvasRef = useRef(null);
-  const [gameStatus, setGameStatus] = useState('playing');
-  const [player, setPlayer] = useState({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, health: 100, direction: 'right', isInvincible: false });
-  const [enemy, setEnemy] = useState({ x: CANVAS_WIDTH - 70, y: CANVAS_HEIGHT - 70, health: 200, stunned: false, speed: INITIAL_ENEMY_SPEED });
-  const [selectedWeapon, setSelectedWeapon] = useState('sword');
-  const [canAttack, setCanAttack] = useState(true);
-  const [enemyStartedMoving, setEnemyStartedMoving] = useState(false);
-  const [attackEffect, setAttackEffect] = useState(null);
-  const [deathEffect, setDeathEffect] = useState(null);
-  const [keysPressed, setKeysPressed] = useState({});
-
-  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-  const applyKnockback = (attacker, target, size, knockbackDistance) => {
-    const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
-    return {
-      x: clamp(target.x + Math.cos(angle) * knockbackDistance, size / 2, CANVAS_WIDTH - size / 2),
-      y: clamp(target.y + Math.sin(angle) * knockbackDistance, size / 2, CANVAS_HEIGHT - size / 2)
-    };
-  };
-
-  const calculateKnockbackDamage = (knockback) => {
-    return Math.floor(knockback / 10);  // 10ごとに1ダメージ
-  };
-
-  const drawHealthBar = (ctx, x, y, width, height, health, maxHealth, color) => {
-    const healthPercentage = health / maxHealth;
-    ctx.fillStyle = 'black';
-    ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, width * healthPercentage, height);
-    ctx.fillStyle = 'white';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${Math.round(health)}/${maxHealth}`, x + width / 2, y + height / 2 + 4);
-  };
+const HiraganaGame = () => {
+  const [currentHiragana, setCurrentHiragana] = useState('');
+  const [questionNumber, setQuestionNumber] = useState(1);
+  const [gameHiragana, setGameHiragana] = useState([]);
+  const [voices, setVoices] = useState([]);
+  const [speechRate, setSpeechRate] = useState(0.2);
+  const [speechPitch, setSpeechPitch] = useState(1.5);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    let animationFrameId;
+    const shuffled = [...allHiragana].sort(() => 0.5 - Math.random());
+    setGameHiragana(shuffled.slice(0, 10));
 
-    const render = () => {
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      // Draw player
-      ctx.fillStyle = player.isInvincible ? 'rgba(0, 0, 255, 0.5)' : 'blue';
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, PLAYER_SIZE / 2, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // Draw player direction
-      ctx.beginPath();
-      ctx.moveTo(player.x, player.y);
-      switch (player.direction) {
-        case 'up':
-          ctx.lineTo(player.x, player.y - PLAYER_SIZE / 2);
-          break;
-        case 'down':
-          ctx.lineTo(player.x, player.y + PLAYER_SIZE / 2);
-          break;
-        case 'left':
-          ctx.lineTo(player.x - PLAYER_SIZE / 2, player.y);
-          break;
-        case 'right':
-          ctx.lineTo(player.x + PLAYER_SIZE / 2, player.y);
-          break;
-      }
-      ctx.strokeStyle = 'white';
-      ctx.stroke();
-
-      // Draw enemy
-      ctx.fillStyle = enemy.stunned ? 'orange' : 'red';
-      ctx.beginPath();
-      ctx.moveTo(enemy.x, enemy.y - ENEMY_SIZE / 2);
-      ctx.lineTo(enemy.x - ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE / 2);
-      ctx.lineTo(enemy.x + ENEMY_SIZE / 2, enemy.y + ENEMY_SIZE / 2);
-      ctx.closePath();
-      ctx.fill();
-
-      // Draw weapon range
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, weapons[selectedWeapon].range, 0, 2 * Math.PI);
-      ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-      ctx.stroke();
-
-      // Draw attack effect
-      if (attackEffect) {
-        ctx.strokeStyle = weapons[selectedWeapon].color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(player.x, player.y);
-        ctx.lineTo(attackEffect.x, attackEffect.y);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
-
-      // Draw health bars
-      drawHealthBar(ctx, 10, 10, 200, 20, player.health, 100, 'limegreen');
-      drawHealthBar(ctx, CANVAS_WIDTH - 210, 10, 200, 20, enemy.health, 200, 'red');
-
-      // Draw enemy speed
-      ctx.fillStyle = 'black';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'left';
-      ctx.fillText(`敵の速度: ${enemy.speed.toFixed(3)}`, 10, CANVAS_HEIGHT - 10);
-
-      animationFrameId = requestAnimationFrame(render);
+    const updateVoices = () => {
+      setVoices(speechSynthesis.getVoices());
     };
-
-    render();
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [player, enemy, selectedWeapon, attackEffect]);
+    speechSynthesis.onvoiceschanged = updateVoices;
+    updateVoices();
+  }, []);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (gameStatus !== 'playing') return;
-      setKeysPressed(prev => ({ ...prev, [e.key]: true }));
-    };
+    if (gameHiragana.length > 0) {
+      setCurrentHiragana(gameHiragana[questionNumber - 1]);
+    }
+  }, [questionNumber, gameHiragana]);
 
-    const handleKeyUp = (e) => {
-      setKeysPressed(prev => ({ ...prev, [e.key]: false }));
-    };
+  const playPronunciation = useCallback(() => {
+    const utterance = new SpeechSynthesisUtterance(currentHiragana);
+    utterance.lang = 'ja-JP';
+    
+    utterance.rate = speechRate;
+    utterance.pitch = speechPitch;
+    utterance.volume = 1.0;
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [gameStatus]);
-
-  useEffect(() => {
-    if (gameStatus !== 'playing') return;
-
-    const movePlayer = () => {
-      let newX = player.x;
-      let newY = player.y;
-      let newDirection = player.direction;
-
-      if (keysPressed.ArrowUp) {
-        newY = Math.max(PLAYER_SIZE / 2, player.y - PLAYER_SPEED);
-        newDirection = 'up';
-      }
-      if (keysPressed.ArrowDown) {
-        newY = Math.min(CANVAS_HEIGHT - PLAYER_SIZE / 2, player.y + PLAYER_SPEED);
-        newDirection = 'down';
-      }
-      if (keysPressed.ArrowLeft) {
-        newX = Math.max(PLAYER_SIZE / 2, player.x - PLAYER_SPEED);
-        newDirection = 'left';
-      }
-      if (keysPressed.ArrowRight) {
-        newX = Math.min(CANVAS_WIDTH - PLAYER_SIZE / 2, player.x + PLAYER_SPEED);
-        newDirection = 'right';
-      }
-
-      if (newX !== player.x || newY !== player.y) {
-        setEnemyStartedMoving(true);
-      }
-
-      setPlayer(prev => ({ ...prev, x: newX, y: newY, direction: newDirection }));
-
-      if (keysPressed.z && canAttack) {
-        attack();
-      }
-
-      if (keysPressed.x) {
-        setSelectedWeapon(prev => {
-          const weaponList = Object.keys(weapons);
-          const currentIndex = weaponList.indexOf(prev);
-          return weaponList[(currentIndex + 1) % weaponList.length];
-        });
-        setKeysPressed(prev => ({ ...prev, x: false }));
-      }
-    };
-
-    const moveEnemy = () => {
-      if (!enemy.stunned && enemyStartedMoving) {
-        const dx = player.x - enemy.x;
-        const dy = player.y - enemy.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance > 0) {
-          const newX = clamp(enemy.x + (dx / distance) * enemy.speed, ENEMY_SIZE / 2, CANVAS_WIDTH - ENEMY_SIZE / 2);
-          const newY = clamp(enemy.y + (dy / distance) * enemy.speed, ENEMY_SIZE / 2, CANVAS_HEIGHT - ENEMY_SIZE / 2);
-          setEnemy(prev => ({ ...prev, x: newX, y: newY }));
-        }
-
-        // Check for collision with player
-        if (distance < (PLAYER_SIZE + ENEMY_SIZE) / 2 && !player.isInvincible) {
-          const knockback = 20;
-          const knockbackDamage = calculateKnockbackDamage(knockback);
-          setPlayer(prev => {
-            const newHealth = Math.max(0, prev.health - ENEMY_DAMAGE - knockbackDamage);
-            if (newHealth <= 0) {
-              setGameStatus('lost');
-            }
-            const knockedBack = applyKnockback(enemy, prev, PLAYER_SIZE, knockback);
-            return { ...prev, health: newHealth, x: knockedBack.x, y: knockedBack.y, isInvincible: true };
-          });
-          setTimeout(() => setPlayer(prev => ({ ...prev, isInvincible: false })), INVINCIBILITY_TIME);
-        }
-      }
-    };
-
-    const intervalId = setInterval(() => {
-      movePlayer();
-      moveEnemy();
-    }, 1000 / 60); // 60 FPS
-
-    return () => clearInterval(intervalId);
-  }, [keysPressed, player, enemy, canAttack, gameStatus, enemyStartedMoving]);
-
-  const attack = () => {
-    const dx = enemy.x - player.x;
-    const dy = enemy.y - player.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance <= weapons[selectedWeapon].range) {
-      const knockbackDamage = calculateKnockbackDamage(weapons[selectedWeapon].knockback);
-      setEnemy(prev => {
-        const newHealth = Math.max(0, prev.health - weapons[selectedWeapon].damage - knockbackDamage);
-        if (newHealth === 0) {
-          setGameStatus('won');
-        }
-        const knockedBack = applyKnockback(player, prev, ENEMY_SIZE, weapons[selectedWeapon].knockback);
-        const newSpeed = Math.min(prev.speed * 1.1, 2);
-        return { ...prev, health: newHealth, stunned: true, x: knockedBack.x, y: knockedBack.y, speed: newSpeed };
-      });
-
-      setAttackEffect({ x: enemy.x, y: enemy.y });
-      setTimeout(() => setAttackEffect(null), 100);
-
-      setTimeout(() => setEnemy(prev => ({ ...prev, stunned: false })), 500);
+    const femaleJapaneseVoice = voices.find(voice => voice.lang === 'ja-JP' && voice.name.includes('Female'));
+    const japaneseVoice = voices.find(voice => voice.lang === 'ja-JP');
+    
+    if (femaleJapaneseVoice) {
+      utterance.voice = femaleJapaneseVoice;
+    } else if (japaneseVoice) {
+      utterance.voice = japaneseVoice;
     }
 
-    setCanAttack(false);
-    setTimeout(() => setCanAttack(true), weapons[selectedWeapon].cooldown);
-  };
+    speechSynthesis.speak(utterance);
+  }, [currentHiragana, voices, speechRate, speechPitch]);
 
-  const resetGame = () => {
-    setPlayer({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, health: 100, direction: 'right', isInvincible: false });
-    setEnemy({ x: CANVAS_WIDTH - 70, y: CANVAS_HEIGHT - 70, health: 200, stunned: false, speed: INITIAL_ENEMY_SPEED });
-    setGameStatus('playing');
-    setCanAttack(true);
-    setEnemyStartedMoving(false);
-    setDeathEffect(null);
-    setKeysPressed({});
+  const handleNext = () => {
+    if (questionNumber < 10) {
+      setQuestionNumber(prev => prev + 1);
+    } else {
+      alert('おめでとうございます！10問全て終了しました。');
+      const shuffled = [...allHiragana].sort(() => 0.5 - Math.random());
+      setGameHiragana(shuffled.slice(0, 10));
+      setQuestionNumber(1);
+    }
   };
 
   return (
-    <div className="w-[650px] mx-auto mt-8 p-4 border rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-center">オープンフィールドチェイスゲーム</h2>
-      <div className="text-center">
-        <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} style={{ border: '1px solid black' }} />
-        <p className="mt-2">
-          青い丸: プレイヤー（白線が向き） | 赤い三角: 敵 | 緑の円: 攻撃範囲
-        </p>
-        <p className="mt-1">
-          現在の武器: {selectedWeapon === 'sword' ? '剣' : selectedWeapon === 'bow' ? '弓' : '魔法'}
-        </p>
-        {gameStatus === 'lost' && <p className="text-red-500 font-bold mt-2">ゲームオーバー！敵に倒されました。</p>}
-        {gameStatus === 'won' && <p className="text-green-500 font-bold mt-2">勝利！敵を倒しました。</p>}
-      </div>
-      <div className="flex justify-center mt-4">
-        {(gameStatus === 'lost' || gameStatus === 'won') && (
-          <button 
-            onClick={resetGame}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            ゲームをリセット
-          </button>
-        )}
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+      <div className="text-2xl mb-4">問題 {questionNumber} / 10</div>
+      <Progress value={(questionNumber / 10) * 100} className="w-64 mb-8" />
+      <div className="text-9xl font-bold mb-8">{currentHiragana}</div>
+      <div className="space-y-4 flex flex-col items-center">
+        <Button onClick={playPronunciation} className="w-40">
+          <Volume2 className="mr-2" />
+          発音を聞く
+        </Button>
+        <Button onClick={handleNext} className="w-40">
+          次へ
+        </Button>
+        <div className="w-64 mt-4">
+          <p className="text-sm mb-2">発音速度：</p>
+          <Slider
+            min={0.05}
+            max={1}
+            step={0.05}
+            value={[speechRate]}
+            onValueChange={(value) => setSpeechRate(value[0])}
+          />
+          <div className="flex justify-between text-xs mt-1">
+            <span>超遅い</span>
+            <span>普通</span>
+          </div>
+        </div>
+        <div className="w-64 mt-4">
+          <p className="text-sm mb-2">声の高さ：</p>
+          <Slider
+            min={0.5}
+            max={2}
+            step={0.1}
+            value={[speechPitch]}
+            onValueChange={(value) => setSpeechPitch(value[0])}
+          />
+          <div className="flex justify-between text-xs mt-1">
+            <span>低い</span>
+            <span>高い</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default OpenFieldGame;
+export default HiraganaGame;
